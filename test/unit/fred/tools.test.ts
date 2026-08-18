@@ -13,7 +13,7 @@ afterAll(() => {
 describe('FRED tools module', () => {
   // Create a mock server for testing
   const createMockServer = () => ({
-    tool: jest.fn()
+    registerTool: jest.fn()
   });
   
   beforeEach(() => {
@@ -29,11 +29,11 @@ describe('FRED tools module', () => {
       const mockServer = createMockServer();
       registerFREDTools(mockServer as any);
       
-      // Verify server.tool was called three times
-      expect(mockServer.tool).toHaveBeenCalledTimes(3);
+      // Verify server.registerTool was called three times
+      expect(mockServer.registerTool).toHaveBeenCalledTimes(3);
       
       // Get the registered tools
-      const toolCalls = mockServer.tool.mock.calls;
+      const toolCalls = mockServer.registerTool.mock.calls;
       const toolNames = toolCalls.map(call => call[0]);
       
       // Verify all three tools are registered
@@ -47,11 +47,11 @@ describe('FRED tools module', () => {
       registerFREDTools(mockServer as any);
       
       // Find the browse tool registration
-      const browseToolCall = mockServer.tool.mock.calls.find(call => call[0] === 'fred_browse');
+      const browseToolCall = mockServer.registerTool.mock.calls.find(call => call[0] === 'fred_browse');
       expect(browseToolCall).toBeDefined();
       
       // Verify schema has expected fields
-      const schema = browseToolCall![2];
+      const schema = browseToolCall![1].inputSchema;
       expect(schema).toHaveProperty('browse_type');
       expect(schema).toHaveProperty('category_id');
       expect(schema).toHaveProperty('release_id');
@@ -66,11 +66,11 @@ describe('FRED tools module', () => {
       registerFREDTools(mockServer as any);
       
       // Find the search tool registration
-      const searchToolCall = mockServer.tool.mock.calls.find(call => call[0] === 'fred_search');
+      const searchToolCall = mockServer.registerTool.mock.calls.find(call => call[0] === 'fred_search');
       expect(searchToolCall).toBeDefined();
       
       // Verify schema has expected fields
-      const schema = searchToolCall![2];
+      const schema = searchToolCall![1].inputSchema;
       expect(schema).toHaveProperty('search_text');
       expect(schema).toHaveProperty('search_type');
       expect(schema).toHaveProperty('tag_names');
@@ -83,11 +83,11 @@ describe('FRED tools module', () => {
       registerFREDTools(mockServer as any);
       
       // Find the get_series tool registration
-      const getSeriesToolCall = mockServer.tool.mock.calls.find(call => call[0] === 'fred_get_series');
+      const getSeriesToolCall = mockServer.registerTool.mock.calls.find(call => call[0] === 'fred_get_series');
       expect(getSeriesToolCall).toBeDefined();
       
       // Verify schema has expected fields
-      const schema = getSeriesToolCall![2];
+      const schema = getSeriesToolCall![1].inputSchema;
       expect(schema).toHaveProperty('series_id');
       expect(schema).toHaveProperty('observation_start');
       expect(schema).toHaveProperty('observation_end');
@@ -101,8 +101,8 @@ describe('FRED tools module', () => {
       registerFREDTools(mockServer as any);
       
       // Verify all handlers are functions
-      mockServer.tool.mock.calls.forEach(call => {
-        const handler = call[3];
+      mockServer.registerTool.mock.calls.forEach(call => {
+        const handler = call[2];
         expect(typeof handler).toBe('function');
       });
     });
