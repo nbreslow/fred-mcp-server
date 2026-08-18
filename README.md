@@ -144,6 +144,32 @@ curl -X POST http://localhost:3000/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
+A `GET /healthz` endpoint reports active sessions, cache statistics, and uptime for load balancers and orchestrators.
+
+### Configuration
+
+All settings are environment variables with sensible defaults:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FRED_API_KEY` | (required) | Your FRED API key |
+| `FRED_API_TIMEOUT_MS` | `30000` | Per-request timeout against the FRED API |
+| `FRED_API_MAX_RETRIES` | `3` | Retries for 429/5xx/network failures (exponential backoff with jitter, honors `Retry-After`) |
+| `FRED_API_RETRY_BASE_DELAY_MS` | `500` | Base delay for retry backoff |
+| `FRED_RATE_LIMIT_PER_MINUTE` | `120` | Client-side token bucket matching FRED's per-key quota |
+| `FRED_CACHE_TTL_MS` | `60000` | TTL for cached API responses (`0` disables caching) |
+| `FRED_CACHE_MAX_ENTRIES` | `500` | LRU cache capacity |
+| `TRANSPORT` | `stdio` | Set to `http` for Streamable HTTP transport |
+| `HOST` | `0.0.0.0` | HTTP bind address |
+| `PORT` | `3000` | HTTP port |
+| `MCP_MAX_SESSIONS` | `100` | Maximum concurrent MCP sessions (new sessions get `503` beyond this) |
+| `MCP_SESSION_TTL_MS` | `1800000` | Idle time before a session is reaped |
+| `MCP_SESSION_SWEEP_INTERVAL_MS` | `60000` | How often the idle-session reaper runs |
+| `MCP_BODY_LIMIT` | `1mb` | Maximum accepted JSON body size |
+| `LOG_LEVEL` | `info` | `error`, `warn`, `info`, or `debug` (logs go to stderr) |
+
+Identical concurrent requests are coalesced into a single upstream call, and successful responses are cached, so multiple sessions share one rate-limit budget efficiently.
+
 ## Available Tools
 
 This MCP server provides three comprehensive tools to access all 800,000+ FRED® economic data series:
