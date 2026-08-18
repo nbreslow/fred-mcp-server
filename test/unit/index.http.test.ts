@@ -50,7 +50,7 @@ describe('HTTP Transport', () => {
 
     afterEach(async () => {
       if (serverResult) {
-        serverResult.httpServer.close();
+        await serverResult.close();
         serverResult = null;
       }
     });
@@ -161,6 +161,66 @@ describe('HTTP Transport', () => {
       expect(toolNames).toContain('fred_search');
       expect(toolNames).toContain('fred_get_series');
       expect(toolNames).toContain('fred_browse');
+    });
+
+    test('serves a health endpoint with session and cache stats', async () => {
+      const port = 3460;
+      serverResult = await startHttpServer(port);
+
+      const response = await fetch(`http://localhost:${port}/healthz`);
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.status).toBe('ok');
+      expect(typeof body.sessions).toBe('number');
+      expect(body.fred).toBeDefined();
+    });
+
+    test('returns 404 for unknown session IDs', async () => {
+      const port = 3461;
+      serverResult = await startHttpServer(port);
+
+      const response = await fetch(`http://localhost:${port}/mcp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+          'mcp-session-id': 'does-not-exist',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+      });
+
+      expect(response.status).toBe(404);
+    });
+
+    test('rejects new sessions when at capacity', async () => {
+      process.env.MCP_MAX_SESSIONS = '0';
+      try {
+        const port = 3462;
+        serverResult = await startHttpServer(port);
+
+        const response = await fetch(`http://localhost:${port}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/event-stream',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+              protocolVersion: '2024-11-05',
+              capabilities: {},
+              clientInfo: { name: 'test-client', version: '1.0.0' }
+            }
+          })
+        });
+
+        expect(response.status).toBe(503);
+      } finally {
+        delete process.env.MCP_MAX_SESSIONS;
+      }
     });
 
     test('rejects request without session ID for non-init requests', async () => {

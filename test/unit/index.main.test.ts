@@ -48,7 +48,7 @@ describe('Main function test', () => {
     await main();
 
     // Verify console.error was called with the startup message
-    expect(console.error).toHaveBeenCalledWith('FRED MCP Server starting...');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('FRED MCP Server starting...'));
   });
 
   test('main should handle error case through logging', async () => {
