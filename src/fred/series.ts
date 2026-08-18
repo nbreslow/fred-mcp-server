@@ -1,9 +1,10 @@
 /**
  * FRED Series Data API Client
- * 
+ *
  * Provides functionality for fetching series data and metadata
  */
 import { makeRequest, SeriesObservationsResponse } from "../common/request.js";
+import { logger } from "../common/logger.js";
 import { getSeriesInfo } from "./search.js";
 
 /**
@@ -19,8 +20,17 @@ export interface FREDSeriesOptions {
   units?: "lin" | "chg" | "ch1" | "pch" | "pc1" | "pca" | "cch" | "cca" | "log";
   frequency?: "d" | "w" | "bw" | "m" | "q" | "sa" | "a" | "wef" | "weth" | "wew" | "wetu" | "wem" | "wesu" | "wesa" | "bwew" | "bwem";
   aggregation_method?: "avg" | "sum" | "eop";
-  output_type?: 1 | 2 | 3 | 4;
+  output_type?: number;
   vintage_dates?: string;
+}
+
+interface SeriesInfo {
+  title?: string;
+  units?: string;
+  frequency?: string;
+  seasonal_adjustment?: string;
+  observation_range?: string;
+  notes?: string;
 }
 
 /**
@@ -29,16 +39,16 @@ export interface FREDSeriesOptions {
 export async function getSeriesData(options: FREDSeriesOptions) {
   try {
     const { series_id, ...queryOptions } = options;
-    
+
     if (!series_id) {
       throw new Error("series_id is required");
     }
-    
+
     // Prepare query parameters
     const queryParams: Record<string, string | number> = {
       series_id
     };
-    
+
     // Add optional parameters
     if (queryOptions.observation_start) queryParams.observation_start = queryOptions.observation_start;
     if (queryOptions.observation_end) queryParams.observation_end = queryOptions.observation_end;
@@ -50,30 +60,20 @@ export async function getSeriesData(options: FREDSeriesOptions) {
     if (queryOptions.aggregation_method) queryParams.aggregation_method = queryOptions.aggregation_method;
     if (queryOptions.output_type !== undefined) queryParams.output_type = queryOptions.output_type;
     if (queryOptions.vintage_dates) queryParams.vintage_dates = queryOptions.vintage_dates;
-    
-    // Fetch the series data
-    const dataResponse = await makeRequest<SeriesObservationsResponse>(
-      "series/observations",
-      queryParams
-    );
-    
-    // Try to get series metadata (but don't fail if it's not available)
-    let seriesInfo: any = null;
-    try {
-      const infoResponse = await getSeriesInfo(series_id);
-      if (infoResponse.content && infoResponse.content[0]) {
-        seriesInfo = JSON.parse(infoResponse.content[0].text);
-      }
-    } catch (error) {
-      console.error(`Could not fetch series info for ${series_id}:`, error);
-    }
-    
+
+    // Fetch observations and series metadata concurrently; metadata is
+    // best-effort and must not fail the data request
+    const [dataResponse, seriesInfo] = await Promise.all([
+      makeRequest<SeriesObservationsResponse>("series/observations", queryParams),
+      fetchSeriesInfoSafe(series_id)
+    ]);
+
     // Transform the data for easier consumption
     const formattedData = dataResponse.observations.map(obs => ({
       date: obs.date,
       value: obs.value === "." ? null : parseFloat(obs.value)
     }));
-    
+
     const responseData = {
       series_id,
       title: seriesInfo?.title || `FRED Series: ${series_id}`,
@@ -88,7 +88,7 @@ export async function getSeriesData(options: FREDSeriesOptions) {
       notes: seriesInfo?.notes,
       data: formattedData
     };
-    
+
     return {
       content: [{
         type: "text" as const,
@@ -101,4 +101,16 @@ export async function getSeriesData(options: FREDSeriesOptions) {
     }
     throw error;
   }
+}
+
+async function fetchSeriesInfoSafe(seriesId: string): Promise<SeriesInfo | null> {
+  try {
+    const infoResponse = await getSeriesInfo(seriesId);
+    if (infoResponse.content && infoResponse.content[0]) {
+      return JSON.parse(infoResponse.content[0].text) as SeriesInfo;
+    }
+  } catch (error) {
+    logger.debug(`Could not fetch series info for ${seriesId}:`, error);
+  }
+  return null;
 }

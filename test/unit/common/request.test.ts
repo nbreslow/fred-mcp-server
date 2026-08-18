@@ -1,5 +1,5 @@
 import { describe, expect, test, jest, beforeEach, afterEach } from '@jest/globals';
-import { makeRequest, fetchFREDSeriesData } from '../../../src/common/request.js';
+import { makeRequest, fetchFREDSeriesData, resetRequestState, FREDApiError } from '../../../src/common/request.js';
 
 describe('Request module', () => {
   // Store the original fetch
@@ -7,6 +7,8 @@ describe('Request module', () => {
   
   // Setup before tests
   beforeEach(() => {
+    // Drop cached responses and rate-limiter state between tests
+    resetRequestState();
     // Mock the global fetch function
     global.fetch = jest.fn().mockImplementation(() => 
       Promise.resolve({
@@ -50,21 +52,16 @@ describe('Request module', () => {
     }
   });
   
-  test('makeRequest uses default API key if not provided in environment', async () => {
+  test('makeRequest throws a clear error when no API key is configured', async () => {
     // Save the environment variable
     const oldApiKey = process.env.FRED_API_KEY;
     delete process.env.FRED_API_KEY;
-    
+
     try {
-      // Call makeRequest
-      await makeRequest('test-endpoint');
-      
-      // Get the URL that was passed to fetch
-      const url = (global.fetch as jest.Mock).mock.calls[0][0];
-      
-      // Verify URL includes the default API key
-      expect(url).toContain('api_key=');
-      expect(url).not.toContain('api_key=undefined');
+      // Call makeRequest and expect a configuration error, not a request
+      await expect(makeRequest('test-endpoint'))
+        .rejects.toThrow('FRED_API_KEY is not set');
+      expect(global.fetch).not.toHaveBeenCalled();
     } finally {
       // Restore the environment variable
       process.env.FRED_API_KEY = oldApiKey;
@@ -181,7 +178,7 @@ describe('Request module', () => {
       // Call the function and expect it to throw an error
       await expect(fetchFREDSeriesData('TEST', {}))
         .rejects
-        .toThrow('Failed to retrieve TEST data: Network disconnected');
+        .toThrow('Failed to retrieve TEST data: FRED API network error: Network disconnected');
     });
     
     test('handles malformed response data', async () => {

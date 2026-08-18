@@ -1,45 +1,43 @@
+/**
+ * Backwards-compatible facade over the FREDClient request pipeline.
+ *
+ * A single shared client instance backs every tool call so all MCP sessions
+ * in the process share one cache and one rate-limit budget (FRED quotas are
+ * per API key, not per session).
+ */
 import { z } from "zod";
+import { FREDClient } from "./fred-client.js";
+import { FREDApiError } from "./errors.js";
 
-const BASE_URL = "https://api.stlouisfed.org/fred";
+export { FREDApiError };
+export { FREDClient } from "./fred-client.js";
+export type { ResponseCache, Throttle, FREDClientOptions } from "./fred-client.js";
+
+const defaultClient = new FREDClient();
 
 /**
- * Utility for making requests to the FRED API
+ * Utility for making requests to the FRED API.
+ *
+ * Handles rate limiting (shared token bucket), response caching, in-flight
+ * request coalescing, timeouts, and retries with exponential backoff.
  */
 export const makeRequest = async <T>(
   endpoint: string,
   queryParams: Record<string, string | number | boolean> = {}
-): Promise<T> => {
-  // For development, use a demo API key if none is provided in environment
-  const apiKey = process.env.FRED_API_KEY || "abcdefghijklmnopqrstuvwxyz123456";
+): Promise<T> => defaultClient.request<T>(endpoint, queryParams);
 
-  const url = new URL(`${BASE_URL}/${endpoint}`);
+/**
+ * Reset shared request state (cache, rate limiter, in-flight requests).
+ * Intended for tests and for reconfiguration after env changes.
+ */
+export function resetRequestState(): void {
+  defaultClient.reset();
+}
 
-  // Add all query parameters
-  Object.entries(queryParams).forEach(([key, value]) => {
-    url.searchParams.append(key, String(value));
-  });
-
-  // Add the API key
-  url.searchParams.append("api_key", apiKey);
-
-  // Add common parameters
-  url.searchParams.append("file_type", "json");
-
-  console.error(`Fetching FRED API: ${url.toString().replace(/api_key=[^&]+/, "api_key=***")}`);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      "Accept": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`FRED API error (${response.status}): ${errorText}`);
-  }
-
-  return response.json() as Promise<T>;
-};
+/** Cache/coalescing statistics for the shared client, for health endpoints. */
+export function getRequestStats() {
+  return defaultClient.stats();
+}
 
 // Observation schema for the series/observations endpoint
 export const ObservationSchema = z.object({
@@ -99,7 +97,7 @@ export const FRED_SERIES_REGISTRY: Record<string, FREDSeriesMetadata> = {
 
 /**
  * Fetches economic data for a specific FRED series
- * 
+ *
  * @param seriesId - FRED series identifier (e.g., "CPIAUCSL")
  * @param options - Query parameters for filtering the data
  * @returns Formatted series data with metadata
@@ -114,31 +112,26 @@ export async function fetchFREDSeriesData(
   }
 ) {
   try {
-    // Prepare query parameters
     const queryParams: Record<string, string | number | boolean> = {
       series_id: seriesId
     };
 
-    // Add optional parameters if provided
     if (options.start_date) queryParams.observation_start = options.start_date;
     if (options.end_date) queryParams.observation_end = options.end_date;
     if (options.limit) queryParams.limit = options.limit;
     if (options.sort_order) queryParams.sort_order = options.sort_order;
 
-    // Make the request to FRED API
     const response = await makeRequest<SeriesObservationsResponse>(
       "series/observations",
       queryParams
     );
 
-    // Get metadata for this series
     const metadata = FRED_SERIES_REGISTRY[seriesId] || {
       title: `FRED Data Series: ${seriesId}`,
       description: `Economic data from FRED series ${seriesId}`,
       units: "Value"
     };
 
-    // Transform the data for easier consumption
     const formattedData = response.observations.map(obs => ({
       date: obs.date,
       value: parseFloat(obs.value),
@@ -161,7 +154,6 @@ export async function fetchFREDSeriesData(
       }]
     };
   } catch (error) {
-    // Handle all error types uniformly for better error messages
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to retrieve ${seriesId} data: ${errorMessage}`);
   }
