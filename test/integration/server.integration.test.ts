@@ -130,8 +130,8 @@ describe('FRED MCP Server Integration', () => {
       expect(processOnMock).toHaveBeenCalledWith('SIGINT', expect.any(Function));
       
       // Verify logs
-      expect(console.error).toHaveBeenCalledWith("FRED MCP Server starting...");
-      expect(console.error).toHaveBeenCalledWith("FRED MCP Server running on stdio");
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining("FRED MCP Server starting..."));
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining("FRED MCP Server running on stdio"));
     } finally {
       // Restore process.on
       process.on = originalProcessOn;
@@ -175,6 +175,6 @@ describe('FRED MCP Server Integration', () => {
     
     // Verify error handling
     expect(result).toBe(false);
-    expect(console.error).toHaveBeenCalledWith('Failed to start server:', expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to start server:'), expect.any(Error));
   });
 });

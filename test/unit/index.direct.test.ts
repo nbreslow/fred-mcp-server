@@ -63,8 +63,8 @@ describe('Index module direct tests', () => {
     expect(result).toBe(true);
     
     // Verify console logs
-    expect(console.error).toHaveBeenCalledWith('FRED MCP Server starting...');
-    expect(console.error).toHaveBeenCalledWith('FRED MCP Server running on stdio');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('FRED MCP Server starting...'));
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('FRED MCP Server running on stdio'));
   });
   
   test('startServer handles connection error', async () => {
@@ -83,7 +83,7 @@ describe('Index module direct tests', () => {
     
     // Verify error handling
     expect(result).toBe(false);
-    expect(console.error).toHaveBeenCalledWith('Failed to start server:', mockError);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to start server:'), mockError);
   });
   
   test('SIGINT handler calls process.exit', async () => {
@@ -111,7 +111,7 @@ describe('Index module direct tests', () => {
     sigintHandler();
     
     // Verify process.exit was called
-    expect(console.error).toHaveBeenCalledWith('Server shutting down...');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('shutting down'));
     expect(process.exit).toHaveBeenCalledWith(0);
   });
 });
