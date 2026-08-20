@@ -160,7 +160,7 @@ All settings are environment variables with sensible defaults:
 | `FRED_CACHE_TTL_MS` | `60000` | TTL for cached API responses (`0` disables caching) |
 | `FRED_CACHE_MAX_ENTRIES` | `500` | LRU cache capacity |
 | `TRANSPORT` | `stdio` | Set to `http` for Streamable HTTP transport |
-| `HOST` | `0.0.0.0` | HTTP bind address |
+| `HOST` | (all interfaces) | HTTP bind address |
 | `PORT` | `3000` | HTTP port |
 | `MCP_MAX_SESSIONS` | `100` | Maximum concurrent MCP sessions (new sessions get `503` beyond this) |
 | `MCP_SESSION_TTL_MS` | `1800000` | Idle time before a session is reaped |
