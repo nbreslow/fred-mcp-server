@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-20
+
+### ✨ Added
+- Client-side rate limiting (token bucket matching FRED's 120 requests/minute per-key quota)
+- TTL+LRU response cache and coalescing of identical in-flight requests
+- Retries with exponential backoff and jitter for 429/5xx/network failures, honoring `Retry-After`
+- Request timeouts via `AbortController`
+- HTTP session limits (`MCP_MAX_SESSIONS`) and idle-session reaping (`MCP_SESSION_TTL_MS`)
+- `GET /healthz` endpoint with session, cache, and uptime statistics
+- Graceful shutdown on SIGTERM as well as SIGINT
+- Leveled stderr logging via `LOG_LEVEL`
+- All tunables configurable through environment variables (see README)
+
+### 🔧 Changed
+- A missing `FRED_API_KEY` now fails with a clear configuration error instead of sending a placeholder key that FRED rejected with an opaque 400
+- Unknown HTTP session IDs return 404 instead of 400
+- Tools are registered through `registerTool` (SDK 1.25 deprecated `server.tool`)
+- `fred_get_series` fetches observations and metadata concurrently
+- `fred_browse` accepts `filter_variable` and `filter_value` for `category_series`
+
+### 🐛 Fixed
+- Windows build and entrypoint detection (#29, thanks @zhowzeng)
+
+## [1.1.0] - 2026-01-25
+
+_Not published to npm; included in 1.2.0._
+
+### ✨ Added
+- Streamable HTTP transport (`--http` flag or `TRANSPORT=http`)
+- MCP conformance test suite and CI workflow
+- Documentation site (Mintlify)
+
+### 🔧 Changed
+- Updated `@modelcontextprotocol/sdk` to 1.26, added `express`
+- Docker image pinned to Node 22 with HTTP transport support
+
 ## [1.0.0] - 2025-08-15
 
 ### 🚨 Breaking Changes
