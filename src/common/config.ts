@@ -23,6 +23,7 @@ export interface FREDConfig {
 }
 
 export interface HttpConfig {
+  /** Bind address. Empty string means all interfaces (dual-stack). */
   host: string;
   port: number;
   /** Maximum number of concurrent MCP sessions. */
@@ -58,7 +59,7 @@ export function getFREDConfig(): FREDConfig {
 
 export function getHttpConfig(): HttpConfig {
   return {
-    host: process.env.HOST || "0.0.0.0",
+    host: process.env.HOST || "",
     port: intFromEnv("PORT", 3000, 1),
     // 0 is allowed: it drains the server by refusing new sessions
     maxSessions: intFromEnv("MCP_MAX_SESSIONS", 100, 0),

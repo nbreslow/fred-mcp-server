@@ -182,10 +182,15 @@ export async function startHttpServer(port?: number): Promise<HttpServerResult> 
   app.delete("/mcp", handleSessionRequest);
 
   const httpServer = await new Promise<Server>((resolve, reject) => {
-    const s = app.listen(listenPort, config.host, () => {
-      logger.info(`FRED MCP Server running on http://${config.host}:${listenPort}/mcp`);
+    // Without HOST, listen on all interfaces (dual-stack) so IPv6 loopback
+    // clients can connect; Node 18's fetch resolves localhost to ::1
+    const onListen = () => {
+      logger.info(`FRED MCP Server running on http://${config.host || "localhost"}:${listenPort}/mcp`);
       resolve(s);
-    });
+    };
+    const s = config.host
+      ? app.listen(listenPort, config.host, onListen)
+      : app.listen(listenPort, onListen);
     s.once("error", reject);
   });
 
