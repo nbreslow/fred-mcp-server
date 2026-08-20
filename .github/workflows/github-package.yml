@@ -87,6 +87,8 @@ jobs:
         run: |
           echo "@stefanoamorelli:registry=https://npm.pkg.github.com/" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Update package name for GitHub Packages
         run: |
